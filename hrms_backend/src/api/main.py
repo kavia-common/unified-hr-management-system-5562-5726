@@ -1,11 +1,14 @@
 from typing import Dict
 
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette import status
 
-from src.api.db import Base, engine, verify_database_connectivity
+from src.api.db import Base, engine, verify_database_connectivity, get_database_info
 from src.api import models  # noqa: F401  # Ensure models are registered with Base for metadata
+
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app with OpenAPI metadata and tags
 app = FastAPI(
@@ -41,9 +44,10 @@ def on_startup() -> None:
     # Create tables if they do not exist.
     try:
         Base.metadata.create_all(bind=engine)
+        logger.info("Database schema ensured successfully")
     except Exception as exc:
-        # Fail fast with clear error; container orchestration will restart based on policy.
-        raise RuntimeError(f"Database initialization failed: {exc}") from exc
+        # Do not crash the app; log error so readiness can reflect not ready status.
+        logger.error("Database initialization failed: %s", exc)
 
 
 # PUBLIC_INTERFACE
@@ -78,8 +82,10 @@ def readiness_check() -> Dict[str, str]:
         # Return 503 to indicate not ready; Starlette/FastAPI will handle status code via exception
         from fastapi import HTTPException
 
+        # Include minimal diagnostic info (non-sensitive) to ease troubleshooting
+        diag = get_database_info()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not ready",
+            detail={"message": "Database not ready", "diag": diag},
         )
     return {"status": "ready"}
