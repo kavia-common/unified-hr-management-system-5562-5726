@@ -1,3 +1,10 @@
+"""
+Utility script to generate and write the OpenAPI schema to interfaces/openapi.json.
+
+This script imports the FastAPI app to ensure routes and metadata are loaded,
+then serializes the generated OpenAPI schema to disk.
+"""
+
 import json
 import os
 
