@@ -39,27 +39,29 @@ def _get_database_url() -> str:
     Order:
     - DATABASE_URL (full SQLAlchemy URL)
     - SQLITE_DB_PATH (file path), converted to sqlite:///...
+    - Fallback support for REACT_APP_DATABASE_URL and REACT_APP_SQLITE_DB_PATH (to align with container env)
     - Default to sqlite:///./hrms.db
 
     Returns:
         str: A valid SQLAlchemy database URL.
     """
-    database_url = os.getenv("DATABASE_URL")
-    sqlite_path = os.getenv("SQLITE_DB_PATH")
+    # Support both backend-specific and shared container env variable names
+    database_url = os.getenv("DATABASE_URL") or os.getenv("REACT_APP_DATABASE_URL")
+    sqlite_path = os.getenv("SQLITE_DB_PATH") or os.getenv("REACT_APP_SQLITE_DB_PATH")
+
     if database_url:
         url = database_url.strip()
         # Log only the scheme to avoid exposing local paths in some deployments
-        logger.info("Using DATABASE_URL with scheme: %s", url.split(":", 1)[0] if ":" in url else "unknown")
+        logger.info(
+            "Using database URL with scheme: %s",
+            url.split(":", 1)[0] if ":" in url else "unknown",
+        )
         return url
 
     # Validate sqlite_path if provided and convert to sqlite URL
     if sqlite_path:
         candidate = sqlite_path.strip()
-        # Reject empty or whitespace-only
-        if not candidate:
-            # Will fallback below
-            pass
-        else:
+        if candidate:
             # Expand user and make absolute/relative safe path
             candidate = os.path.expanduser(candidate)
             # Construct sqlite URL with three slashes for relative, four for absolute
@@ -69,6 +71,7 @@ def _get_database_url() -> str:
                 url = f"sqlite:///./{candidate}"
             logger.info("Resolved SQLITE_DB_PATH to sqlite URL")
             return url
+        # else: fall through to default
 
     # Default fallback: local file
     url = f"sqlite:///./{DEFAULT_SQLITE_FILENAME}"
