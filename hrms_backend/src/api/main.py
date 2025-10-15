@@ -61,6 +61,20 @@ def health_check() -> Dict[str, str]:
     """
     return {"message": "Healthy"}
 
+# PUBLIC_INTERFACE
+@app.get(
+    "/healthz",
+    tags=["Health"],
+    summary="Kubernetes-style health check",
+    description="Alias for / that returns 200 if the service is running.",
+)
+def healthz() -> Dict[str, str]:
+    """
+    Healthz endpoint alias used by some orchestrators.
+    Returns a simple OK without touching the database.
+    """
+    return {"status": "ok"}
+
 
 # PUBLIC_INTERFACE
 @app.get(

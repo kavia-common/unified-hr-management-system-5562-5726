@@ -10,6 +10,9 @@ This service provides the REST API for the Unified HR Management System.
 - Start the server (binds to 0.0.0.0:3001 by default):
   python run.py
 
+Alternative (explicit ASGI module):
+  uvicorn hrms_backend.asgi:app --host 0.0.0.0 --port 3001
+
 You can override host/port via env:
 - HOST=0.0.0.0
 - PORT=3001
