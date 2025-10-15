@@ -39,26 +39,34 @@ def _get_database_url() -> str:
     Order:
     - DATABASE_URL (full SQLAlchemy URL)
     - SQLITE_DB_PATH (file path), converted to sqlite:///...
+    - As compatibility fallback, REACT_APP_DATABASE_URL or REACT_APP_SQLITE_DB_PATH (if present)
     - Default to sqlite:///./hrms.db
 
     Returns:
         str: A valid SQLAlchemy database URL.
     """
-    database_url = os.getenv("DATABASE_URL")
-    sqlite_path = os.getenv("SQLITE_DB_PATH")
+    # Primary backend-scoped variables
+    database_url = os.getenv("DATABASE_URL") or os.getenv("REACT_APP_DATABASE_URL")
+    sqlite_path = os.getenv("SQLITE_DB_PATH") or os.getenv("REACT_APP_SQLITE_DB_PATH")
+
     if database_url:
         url = database_url.strip()
-        # Log only the scheme to avoid exposing local paths in some deployments
-        logger.info("Using DATABASE_URL with scheme: %s", url.split(":", 1)[0] if ":" in url else "unknown")
-        return url
+        if not url:
+            logger.warning("DATABASE_URL provided but empty; continuing to next fallback")
+        else:
+            # Log only the scheme to avoid exposing local paths in some deployments
+            logger.info(
+                "Using database URL with scheme: %s",
+                url.split(":", 1)[0] if ":" in url else "unknown",
+            )
+            return url
 
     # Validate sqlite_path if provided and convert to sqlite URL
     if sqlite_path:
         candidate = sqlite_path.strip()
         # Reject empty or whitespace-only
         if not candidate:
-            # Will fallback below
-            pass
+            logger.warning("SQLITE_DB_PATH provided but empty; continuing to default")
         else:
             # Expand user and make absolute/relative safe path
             candidate = os.path.expanduser(candidate)
@@ -132,6 +140,17 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base declarative for models
 Base = declarative_base()
+
+# Log limited DB diagnostics (non-sensitive) to aid startup issues
+try:
+    scheme = DATABASE_URL.split(":", 1)[0] if ":" in DATABASE_URL else "unknown"
+    if scheme == "sqlite":
+        db_path = os.path.abspath(DATABASE_URL.replace("sqlite:///", "", 1)) if DATABASE_URL.startswith("sqlite:///") else ""
+        logger.info("DB init: scheme=%s sqlite_path=%s", scheme, db_path if db_path else "(not a file path)")
+    else:
+        logger.info("DB init: scheme=%s", scheme)
+except Exception:  # pragma: no cover - defensive
+    logger.debug("DB init diagnostics logging skipped due to unexpected error")
 
 
 # PUBLIC_INTERFACE

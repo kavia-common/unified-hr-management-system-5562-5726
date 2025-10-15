@@ -67,7 +67,11 @@ def health_check() -> Dict[str, str]:
     "/readiness",
     tags=["Health"],
     summary="Readiness Check",
-    description="Verifies database connectivity and returns 200 if ready.",
+    description=(
+        "Verifies database connectivity and returns 200 if ready. "
+        "The backend reads DATABASE_URL/SQLITE_DB_PATH, and as a fallback, "
+        "REACT_APP_DATABASE_URL/REACT_APP_SQLITE_DB_PATH for compatibility."
+    ),
     status_code=status.HTTP_200_OK,
 )
 def readiness_check() -> Dict[str, str]:
